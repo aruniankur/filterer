@@ -154,41 +154,68 @@
               <div class="plot-title">Rank Shift Scatter</div>
               <div class="plot-subtitle">x = previous rank, y = new rank. Click a point to see details.</div>
             </div>
-            <div class="plot-grid">
+            <div class="plot-grid {% if transition not in ['10_to_11', '11_to_12'] %}plot-grid--full{% endif %}">
               <div class="plot-wrap">
                 <canvas id="rankPlot" width="900" height="380"></canvas>
               </div>
-              <div class="kpi-grid">
-                <div class="kpi-card">
-                  <div class="kpi-label">Avg rank change</div>
-                  <div class="kpi-value">{{ avg_rank_change if avg_rank_change is not none else "—" }}</div>
+              {% if transition in ['10_to_11', '11_to_12'] %}
+              <div class="kpi-grid kpi-grid--single">
+                <div class="kpi-card kpi-chart">
+                  <div class="kpi-label">{{ transition }} Location Type (Top {{ rank_limit }})</div>
+                  {% if location_breakdown and location_breakdown|length > 0 %}
+                  <div class="kpi-chart-row">
+                    <div class="kpi-chart-wrap">
+                      <canvas id="locationPie" width="160" height="160"></canvas>
+                    </div>
+                    <div class="kpi-legend" id="locationLegend"></div>
+                  </div>
+                  {% else %}
+                  <div class="kpi-value">—</div>
+                  {% endif %}
                 </div>
-                <div class="kpi-card">
-                  <div class="kpi-label">Median rank change</div>
-                  <div class="kpi-value">{{ median_rank_change if median_rank_change is not none else "—" }}</div>
-                </div>
-                <div class="kpi-card">
-                  <div class="kpi-label">Top gainer</div>
-                  <div class="kpi-value">{{ top_gainer_change if top_gainer_change is not none else "—" }}</div>
-                  <div class="kpi-sub">{{ top_gainer_name if top_gainer_name else "" }}</div>
-                </div>
-                <div class="kpi-card">
-                  <div class="kpi-label">Top loser</div>
-                  <div class="kpi-value">{{ top_loser_change if top_loser_change is not none else "—" }}</div>
-                  <div class="kpi-sub">{{ top_loser_name if top_loser_name else "" }}</div>
-                </div>
-                {% if transition in ['10_to_11', '11_to_12'] %}
-                <div class="kpi-card">
-                  <div class="kpi-label">{{ transition }} % Category A (Top {{ rank_limit }})</div>
-                  <div class="kpi-value">{{ ("%.2f%%" | format(cat_pct_a)) if cat_pct_a is not none else "—" }}</div>
-                </div>
-                <div class="kpi-card">
-                  <div class="kpi-label">{{ transition }} % Category B (Top {{ rank_limit }})</div>
-                  <div class="kpi-value">{{ ("%.2f%%" | format(cat_pct_b)) if cat_pct_b is not none else "—" }}</div>
-                </div>
-                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+            <div class="kpi-row kpi-row--stats">
+              <div class="kpi-card">
+                <div class="kpi-label">Avg rank change</div>
+                <div class="kpi-value">{{ avg_rank_change if avg_rank_change is not none else "—" }}</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Median rank change</div>
+                <div class="kpi-value">{{ median_rank_change if median_rank_change is not none else "—" }}</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Top gainer</div>
+                <div class="kpi-value">{{ top_gainer_change if top_gainer_change is not none else "—" }}</div>
+                <div class="kpi-sub">{{ top_gainer_name if top_gainer_name else "" }}</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">Top loser</div>
+                <div class="kpi-value">{{ top_loser_change if top_loser_change is not none else "—" }}</div>
+                <div class="kpi-sub">{{ top_loser_name if top_loser_name else "" }}</div>
               </div>
             </div>
+            {% if transition in ['10_to_11', '11_to_12'] %}
+            <div class="kpi-row">
+              <div class="kpi-card">
+                <div class="kpi-label">{{ transition }} % Category A (Top {{ rank_limit }})</div>
+                <div class="kpi-value">{{ ("%.2f%%" | format(cat_pct_a)) if cat_pct_a is not none else "—" }}</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">{{ transition }} % Category B (Top {{ rank_limit }})</div>
+                <div class="kpi-value">{{ ("%.2f%%" | format(cat_pct_b)) if cat_pct_b is not none else "—" }}</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">{{ transition }} % Male (Top {{ rank_limit }})</div>
+                <div class="kpi-value">{{ ("%.2f%%" | format(gender_pct_m)) if gender_pct_m is not none else "—" }}</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-label">{{ transition }} % Female (Top {{ rank_limit }})</div>
+                <div class="kpi-value">{{ ("%.2f%%" | format(gender_pct_f)) if gender_pct_f is not none else "—" }}</div>
+              </div>
+            </div>
+            {% endif %}
           </div>
           <div class="table-wrap">
             <table>
@@ -267,6 +294,9 @@
       const plotPoints = {{ plot_points | tojson }};
       const fullRows = {{ full_rows | tojson }};
       const rowsById = new Map(fullRows.map((row) => [row.application_id, row]));
+      const locationPieData = {{ location_breakdown | tojson }};
+      const locationPieCanvas = document.getElementById("locationPie");
+      const locationLegend = document.getElementById("locationLegend");
 
       const closeModal = () => {
         modal.style.display = "none";
@@ -352,6 +382,17 @@
         w_c10_a2: {{ w_c10_a2 }},
         w_cat_b_11_12: {{ w_cat_b_11_12 }},
       };
+
+      const pieColors = [
+        "#0e7490",
+        "#f59e0b",
+        "#65a30d",
+        "#0284c7",
+        "#e11d48",
+        "#14b8a6",
+        "#f97316",
+        "#334155",
+      ];
 
       const updateUrl = () => {
         const url = new URL(window.location.href);
@@ -501,6 +542,50 @@
           modal.style.display = "flex";
         });
         window.addEventListener("resize", drawPlot);
+      }
+
+      const drawLocationPie = () => {
+        if (!locationPieCanvas || !locationPieData || locationPieData.length === 0) {
+          return;
+        }
+        const ctx = locationPieCanvas.getContext("2d");
+        const rect = locationPieCanvas.getBoundingClientRect();
+        const size = Math.max(120, Math.min(rect.width || 160, rect.height || 160));
+        const dpr = window.devicePixelRatio || 1;
+        locationPieCanvas.width = size * dpr;
+        locationPieCanvas.height = size * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const radius = size / 2 - 6;
+        const cx = size / 2;
+        const cy = size / 2;
+        const total = locationPieData.reduce((sum, item) => sum + item.count, 0);
+        let start = -Math.PI / 2;
+
+        ctx.clearRect(0, 0, size, size);
+        locationPieData.forEach((item, index) => {
+          const slice = total ? (item.count / total) * Math.PI * 2 : 0;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, radius, start, start + slice);
+          ctx.closePath();
+          ctx.fillStyle = pieColors[index % pieColors.length];
+          ctx.fill();
+          start += slice;
+        });
+
+        if (locationLegend) {
+          locationLegend.innerHTML = locationPieData
+            .map(
+              (item, index) =>
+                `<div class="legend-item"><span class="legend-dot" style="background:${pieColors[index % pieColors.length]}"></span><span>${item.label}: ${item.percent}%</span></div>`
+            )
+            .join("");
+        }
+      };
+
+      if (locationPieCanvas) {
+        drawLocationPie();
+        window.addEventListener("resize", drawLocationPie);
       }
     </script>
   </body>

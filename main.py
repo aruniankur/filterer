@@ -229,6 +229,43 @@ def index():
             }
         return {"A": None, "B": None}
 
+    def _gender_percentages(rows):
+        counts = {"M": 0, "F": 0, "total": 0}
+        for row in rows:
+            counts["total"] += 1
+            raw = (row.get("gender") or "").strip().lower()
+            if not raw:
+                continue
+            if "female" in raw or raw == "f":
+                counts["F"] += 1
+            elif "male" in raw or raw == "m":
+                counts["M"] += 1
+        if counts["total"]:
+            return {
+                "M": round(counts["M"] / counts["total"] * 100.0, 2),
+                "F": round(counts["F"] / counts["total"] * 100.0, 2),
+            }
+        return {"M": None, "F": None}
+
+    def _location_breakdown(rows):
+        counts = {}
+        for row in rows:
+            raw = (row.get("location_type") or "").strip()
+            label = raw if raw else "Unknown"
+            counts[label] = counts.get(label, 0) + 1
+        if not counts:
+            return []
+        total = sum(counts.values())
+        items = sorted(counts.items(), key=lambda item: (-item[1], item[0].lower()))
+        return [
+            {
+                "label": label,
+                "count": count,
+                "percent": round(count / total * 100.0, 2),
+            }
+            for label, count in items
+        ]
+
     where_clause = ""
     where_params = []
     if transition in {"10_to_11", "11_to_12"}:
@@ -285,6 +322,8 @@ def index():
             row["rank_change"] = prev_rank - new_rank
 
     category_pct = None
+    gender_pct = None
+    location_breakdown = []
     if transition in {"10_to_11", "11_to_12"}:
         top_rows = [
             row
@@ -292,6 +331,8 @@ def index():
             if row.get("new_rank") is not None and row.get("new_rank") <= rank_limit
         ]
         category_pct = _category_percentages(top_rows)
+        gender_pct = _gender_percentages(top_rows)
+        location_breakdown = _location_breakdown(top_rows)
 
     plot_points = [
         {
@@ -392,6 +433,9 @@ def index():
         top_loser_change=top_loser.get("rank_change") if top_loser else None,
         cat_pct_a=category_pct["A"] if category_pct else None,
         cat_pct_b=category_pct["B"] if category_pct else None,
+        gender_pct_m=gender_pct["M"] if gender_pct else None,
+        gender_pct_f=gender_pct["F"] if gender_pct else None,
+        location_breakdown=location_breakdown,
         rank_limit=rank_limit,
         total=total,
         scored=scored,
