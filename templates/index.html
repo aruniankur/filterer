@@ -199,6 +199,10 @@
             {% if transition in ['10_to_11', '11_to_12'] %}
             <div class="kpi-row">
               <div class="kpi-card">
+                <div class="kpi-label">{{ transition }} KV count (Top {{ rank_limit }})</div>
+                <div class="kpi-value">{{ kv_count if kv_count is not none else "—" }}</div>
+              </div>
+              <div class="kpi-card">
                 <div class="kpi-label">{{ transition }} % Category A (Top {{ rank_limit }})</div>
                 <div class="kpi-value">{{ ("%.2f%%" | format(cat_pct_a)) if cat_pct_a is not none else "—" }}</div>
               </div>

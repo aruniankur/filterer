@@ -303,6 +303,12 @@ def index():
             for label, count in items
         ]
 
+    def _is_kv_school(name):
+        if not name:
+            return False
+        lowered = str(name).lower()
+        return "kendriya vidyalaya" in lowered or "kv" in lowered or "ken" in lowered
+
     where_clause = ""
     where_params = []
     if transition in {"10_to_11", "11_to_12"}:
@@ -362,6 +368,7 @@ def index():
     gender_pct = None
     location_breakdown = []
     state_breakdown = []
+    kv_count = None
     if transition in {"10_to_11", "11_to_12"}:
         top_rows = [
             row
@@ -372,6 +379,7 @@ def index():
         gender_pct = _gender_percentages(top_rows)
         location_breakdown = _location_breakdown(top_rows)
         state_breakdown = _state_breakdown(top_rows)
+        kv_count = sum(1 for row in top_rows if _is_kv_school(row.get("school_name")))
 
     plot_points = [
         {
@@ -477,6 +485,7 @@ def index():
         gender_pct_f=gender_pct["F"] if gender_pct else None,
         location_breakdown=location_breakdown,
         state_breakdown=state_breakdown,
+        kv_count=kv_count,
         rank_limit=rank_limit,
         total=total,
         scored=scored,
