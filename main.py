@@ -127,6 +127,39 @@ def _db_has_column(conn, table, column):
     return any(row[1] == column for row in cur.fetchall())
 
 
+def _ensure_meta_table(conn):
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS pipeline_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+        """
+    )
+    conn.commit()
+
+
+def _get_db_meta(conn, key):
+    _ensure_meta_table(conn)
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM pipeline_meta WHERE key = ?", (key,))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+def _set_db_meta(conn, key, value):
+    _ensure_meta_table(conn)
+    conn.execute(
+        """
+        INSERT INTO pipeline_meta (key, value)
+        VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """,
+        (key, value),
+    )
+    conn.commit()
+
+
 def _ensure_db(csv_path, refresh=False):
     if refresh or not config.DB.exists():
         run_pipeline(csv_path)
@@ -134,9 +167,10 @@ def _ensure_db(csv_path, refresh=False):
     conn = sqlite3.connect(config.DB)
     try:
         has_school_name = _db_has_column(conn, "filter_application", "school_name")
+        stored_csv_path = _get_db_meta(conn, "csv_path")
     finally:
         conn.close()
-    if not has_school_name:
+    if not has_school_name or stored_csv_path != str(csv_path):
         run_pipeline(csv_path)
 
 
@@ -209,6 +243,8 @@ def run_pipeline(csv_path):
 
     _export_transition_csv(conn, csv_path.parent / "filter_application_10_to_11.csv", "10_to_11")
     _export_transition_csv(conn, csv_path.parent / "filter_application_11_to_12.csv", "11_to_12")
+
+    _set_db_meta(conn, "csv_path", str(csv_path))
 
     conn.close()
 
