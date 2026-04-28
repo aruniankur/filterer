@@ -43,6 +43,15 @@
                 step="0.01"
                 value="{{ weight }}"
               />
+              <input
+                id="weightInput"
+                class="weight-input"
+                type="number"
+                min="0"
+                max="1"
+                step="0.01"
+                value="{{ "%.2f" | format(weight) }}"
+              />
               <span class="weight-badge" id="weightLabel">{{ "%.2f" | format(weight) }}</span>
               <span>Background weight:</span>
               <span class="weight-badge" id="bgLabel">{{ "%.2f" | format(background_weight) }}</span>
@@ -52,6 +61,15 @@
               <div class="slider-row">
                 <label for="c9aSlider">a (c9)</label>
                 <input id="c9aSlider" type="range" min="0" max="1" step="0.01" value="{{ w_c9_a }}" />
+                <input
+                  id="c9aInput"
+                  class="weight-input"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value="{{ "%.2f" | format(w_c9_a) }}"
+                />
                 <span class="weight-badge" id="c9aLabel">{{ "%.2f" | format(w_c9_a) }}</span>
                 <span>c10:</span>
                 <span class="weight-badge" id="c10aLabel">{{ "%.2f" | format(w_c10_a) }}</span>
@@ -61,6 +79,15 @@
               <div class="slider-row">
                 <label for="catb1011Slider">b (c9)</label>
                 <input id="catb1011Slider" type="range" min="0" max="1" step="0.01" value="{{ w_cat_b_10_11 }}" />
+                <input
+                  id="catb1011Input"
+                  class="weight-input"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value="{{ "%.2f" | format(w_cat_b_10_11) }}"
+                />
                 <span class="weight-badge" id="catb1011Label">{{ "%.2f" | format(w_cat_b_10_11) }}</span>
               </div>
 
@@ -68,6 +95,15 @@
               <div class="slider-row">
                 <label for="c10a2Slider">c (c10)</label>
                 <input id="c10a2Slider" type="range" min="0" max="1" step="0.01" value="{{ w_c10_a2 }}" />
+                <input
+                  id="c10a2Input"
+                  class="weight-input"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value="{{ "%.2f" | format(w_c10_a2) }}"
+                />
                 <span class="weight-badge" id="c10a2Label">{{ "%.2f" | format(w_c10_a2) }}</span>
                 <span>c11:</span>
                 <span class="weight-badge" id="c11aLabel">{{ "%.2f" | format(w_c11_a) }}</span>
@@ -77,6 +113,15 @@
               <div class="slider-row">
                 <label for="catb1112Slider">d (c10)</label>
                 <input id="catb1112Slider" type="range" min="0" max="1" step="0.01" value="{{ w_cat_b_11_12 }}" />
+                <input
+                  id="catb1112Input"
+                  class="weight-input"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value="{{ "%.2f" | format(w_cat_b_11_12) }}"
+                />
                 <span class="weight-badge" id="catb1112Label">{{ "%.2f" | format(w_cat_b_11_12) }}</span>
               </div>
             </div>
@@ -220,18 +265,29 @@
       });
 
       const slider = document.getElementById("weightSlider");
+      const weightInput = document.getElementById("weightInput");
       const weightLabel = document.getElementById("weightLabel");
       const bgLabel = document.getElementById("bgLabel");
       const c9aSlider = document.getElementById("c9aSlider");
+      const c9aInput = document.getElementById("c9aInput");
       const c9aLabel = document.getElementById("c9aLabel");
       const c10aLabel = document.getElementById("c10aLabel");
       const catb1011Slider = document.getElementById("catb1011Slider");
+      const catb1011Input = document.getElementById("catb1011Input");
       const catb1011Label = document.getElementById("catb1011Label");
       const c10a2Slider = document.getElementById("c10a2Slider");
+      const c10a2Input = document.getElementById("c10a2Input");
       const c10a2Label = document.getElementById("c10a2Label");
       const c11aLabel = document.getElementById("c11aLabel");
       const catb1112Slider = document.getElementById("catb1112Slider");
+      const catb1112Input = document.getElementById("catb1112Input");
       const catb1112Label = document.getElementById("catb1112Label");
+
+      const clamp01 = (val, fallback = 0) => {
+        const parsed = Number.parseFloat(val);
+        const safe = Number.isFinite(parsed) ? parsed : fallback;
+        return Math.max(0, Math.min(1, safe));
+      };
 
       const updateLabels = () => {
         const value = parseFloat(slider.value || "0");
@@ -248,6 +304,12 @@
         c11aLabel.textContent = (1 - c10).toFixed(2);
         const b1112 = parseFloat(catb1112Slider.value || "0");
         catb1112Label.textContent = b1112.toFixed(2);
+
+        weightInput.value = value.toFixed(2);
+        c9aInput.value = c9.toFixed(2);
+        catb1011Input.value = b1011.toFixed(2);
+        c10a2Input.value = c10.toFixed(2);
+        catb1112Input.value = b1112.toFixed(2);
       };
 
       const prevWeights = {
@@ -274,16 +336,34 @@
         window.location.href = url.toString();
       };
 
+      const bindNumberInput = (input, sliderEl) => {
+        const syncValue = () => {
+          const clamped = clamp01(input.value, sliderEl.value || 0);
+          sliderEl.value = clamped.toFixed(2);
+          updateLabels();
+        };
+        input.addEventListener("input", syncValue);
+        input.addEventListener("change", () => {
+          syncValue();
+          updateUrl();
+        });
+      };
+
       slider.addEventListener("input", updateLabels);
       slider.addEventListener("change", updateUrl);
+      bindNumberInput(weightInput, slider);
       c9aSlider.addEventListener("input", updateLabels);
       c9aSlider.addEventListener("change", updateUrl);
+      bindNumberInput(c9aInput, c9aSlider);
       catb1011Slider.addEventListener("input", updateLabels);
       catb1011Slider.addEventListener("change", updateUrl);
+      bindNumberInput(catb1011Input, catb1011Slider);
       c10a2Slider.addEventListener("input", updateLabels);
       c10a2Slider.addEventListener("change", updateUrl);
+      bindNumberInput(c10a2Input, c10a2Slider);
       catb1112Slider.addEventListener("input", updateLabels);
       catb1112Slider.addEventListener("change", updateUrl);
+      bindNumberInput(catb1112Input, catb1112Slider);
       updateLabels();
 
       const drawPlot = () => {

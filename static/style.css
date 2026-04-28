@@ -111,6 +111,17 @@ h1 {
   border-radius: 6px;
 }
 
+.weight-input {
+  width: 64px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--grid);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: #fff;
+  color: var(--ink);
+}
+
 .filter-pill {
   display: inline-flex;
   align-items: center;
