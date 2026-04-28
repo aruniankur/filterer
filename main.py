@@ -231,8 +231,15 @@ def index():
     )
 
     display_headers = [
+        "serial_no",
         "application_id",
         "program_type",
+        "prev_rank",
+        "new_rank",
+        "rank_change",
+        "academic_score_calc",
+        "background_score",
+        "final_score_calc",
         "admin_notes",
         "applicant_name",
         "applicant_email",
@@ -242,15 +249,12 @@ def index():
         "c9_percentile",
         "c10_percentile",
         "c11_percentile",
-        "academic_score_calc",
-        "background_score",
-        "final_score_calc",
-        "prev_rank",
-        "new_rank",
-        "rank_change",
     ]
 
-    display_rows = [[row.get(h) for h in display_headers] for row in rows_data]
+    display_rows = [
+        [idx if h == "serial_no" else row.get(h) for h in display_headers]
+        for idx, row in enumerate(rows_data, start=1)
+    ]
     full_row_dicts = rows_data
 
     score_headers = ["academic_score_calc", "background_score", "final_score_calc"]
