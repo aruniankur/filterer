@@ -4,9 +4,10 @@
 from pathlib import Path
 import sqlite3
 import csv
+import io
 import statistics
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, make_response
 
 import config
 from steps.load_csv import load_csv
@@ -21,6 +22,103 @@ from steps.verify import print_verification
 
 
 app = Flask(__name__)
+
+
+def _clamp01(val, default):
+    try:
+        parsed = float(val)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(0.0, min(1.0, parsed))
+
+
+def _parse_weights(args):
+    try:
+        weight = float(args.get("weight", config.FINAL_ACADEMIC_WEIGHT))
+    except ValueError:
+        weight = config.FINAL_ACADEMIC_WEIGHT
+    weight = max(0.0, min(1.0, weight))
+    background_weight = 1.0 - weight
+
+    w_c9_a = _clamp01(args.get("w_c9_a"), config.W_C9_A)
+    w_c10_a = 1.0 - w_c9_a
+    w_cat_b_10_11 = _clamp01(args.get("w_cat_b_10_11"), config.W_CAT_B_10_11)
+
+    w_c10_a2 = _clamp01(args.get("w_c10_a2"), config.W_C10_A2)
+    w_c11_a = 1.0 - w_c10_a2
+    w_cat_b_11_12 = _clamp01(args.get("w_cat_b_11_12"), config.W_CAT_B_11_12)
+
+    prev_weight = _clamp01(args.get("prev_weight"), weight)
+    prev_background_weight = 1.0 - prev_weight
+    prev_w_c9_a = _clamp01(args.get("prev_w_c9_a"), w_c9_a)
+    prev_w_c10_a = 1.0 - prev_w_c9_a
+    prev_w_cat_b_10_11 = _clamp01(args.get("prev_w_cat_b_10_11"), w_cat_b_10_11)
+    prev_w_c10_a2 = _clamp01(args.get("prev_w_c10_a2"), w_c10_a2)
+    prev_w_c11_a = 1.0 - prev_w_c10_a2
+    prev_w_cat_b_11_12 = _clamp01(args.get("prev_w_cat_b_11_12"), w_cat_b_11_12)
+
+    return {
+        "weight": weight,
+        "background_weight": background_weight,
+        "w_c9_a": w_c9_a,
+        "w_c10_a": w_c10_a,
+        "w_cat_b_10_11": w_cat_b_10_11,
+        "w_c10_a2": w_c10_a2,
+        "w_c11_a": w_c11_a,
+        "w_cat_b_11_12": w_cat_b_11_12,
+        "prev_weight": prev_weight,
+        "prev_background_weight": prev_background_weight,
+        "prev_w_c9_a": prev_w_c9_a,
+        "prev_w_c10_a": prev_w_c10_a,
+        "prev_w_cat_b_10_11": prev_w_cat_b_10_11,
+        "prev_w_c10_a2": prev_w_c10_a2,
+        "prev_w_c11_a": prev_w_c11_a,
+        "prev_w_cat_b_11_12": prev_w_cat_b_11_12,
+    }
+
+
+def _calc_academic(row, c9_weight, cat_b_10_11, c10_weight, cat_b_11_12):
+    transition_val = row.get("class_transition")
+    category_val = row.get("category")
+    c9_pct = row.get("c9_percentile")
+    c10_pct = row.get("c10_percentile")
+    c11_pct = row.get("c11_percentile")
+
+    if transition_val == "10_to_11":
+        if category_val == "A" and c9_pct is not None and c10_pct is not None:
+            return round(c9_weight * c9_pct + (1.0 - c9_weight) * c10_pct, 4)
+        if category_val == "B" and c9_pct is not None:
+            return round(cat_b_10_11 * c9_pct, 4)
+    if transition_val == "11_to_12":
+        if category_val == "A" and c10_pct is not None and c11_pct is not None:
+            return round(c10_weight * c10_pct + (1.0 - c10_weight) * c11_pct, 4)
+        if category_val == "B" and c10_pct is not None:
+            return round(cat_b_11_12 * c10_pct, 4)
+    return None
+
+
+def _calc_final(academic_val, bg_val, acad_weight):
+    if academic_val is None or bg_val is None:
+        return None
+    return round(acad_weight * academic_val + (1.0 - acad_weight) * bg_val, 4)
+
+
+def _assign_ranks(rows, score_key):
+    scored = [
+        (row.get("application_id"), row.get(score_key))
+        for row in rows
+        if row.get(score_key) is not None
+    ]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    ranks = {}
+    rank = 0
+    prev_score = None
+    for app_id, score_val in scored:
+        if prev_score is None or score_val != prev_score:
+            rank += 1
+            prev_score = score_val
+        ranks[app_id] = rank
+    return ranks
 
 
 def _export_transition_csv(conn, out_path, transition):
@@ -69,36 +167,7 @@ def index():
     csv_path = Path(request.args.get("csv") or config.CSV)
     refresh = request.args.get("refresh") == "1"
     transition = request.args.get("transition") or "all"
-    try:
-        weight = float(request.args.get("weight", config.FINAL_ACADEMIC_WEIGHT))
-    except ValueError:
-        weight = config.FINAL_ACADEMIC_WEIGHT
-    weight = max(0.0, min(1.0, weight))
-    background_weight = 1.0 - weight
-
-    def _clamp01(val, default):
-        try:
-            parsed = float(val)
-        except (TypeError, ValueError):
-            parsed = default
-        return max(0.0, min(1.0, parsed))
-
-    w_c9_a = _clamp01(request.args.get("w_c9_a"), config.W_C9_A)
-    w_c10_a = 1.0 - w_c9_a
-    w_cat_b_10_11 = _clamp01(request.args.get("w_cat_b_10_11"), config.W_CAT_B_10_11)
-
-    w_c10_a2 = _clamp01(request.args.get("w_c10_a2"), config.W_C10_A2)
-    w_c11_a = 1.0 - w_c10_a2
-    w_cat_b_11_12 = _clamp01(request.args.get("w_cat_b_11_12"), config.W_CAT_B_11_12)
-
-    prev_weight = _clamp01(request.args.get("prev_weight"), weight)
-    prev_background_weight = 1.0 - prev_weight
-    prev_w_c9_a = _clamp01(request.args.get("prev_w_c9_a"), w_c9_a)
-    prev_w_c10_a = 1.0 - prev_w_c9_a
-    prev_w_cat_b_10_11 = _clamp01(request.args.get("prev_w_cat_b_10_11"), w_cat_b_10_11)
-    prev_w_c10_a2 = _clamp01(request.args.get("prev_w_c10_a2"), w_c10_a2)
-    prev_w_c11_a = 1.0 - prev_w_c10_a2
-    prev_w_cat_b_11_12 = _clamp01(request.args.get("prev_w_cat_b_11_12"), w_cat_b_11_12)
+    weights = _parse_weights(request.args)
 
     if not csv_path.exists():
         return f"CSV file not found: {csv_path}", 400
@@ -126,54 +195,25 @@ def index():
     full_rows = cur.fetchall()
     full_headers = [d[0] for d in cur.description]
 
-    def _calc_academic(row, c9_weight, cat_b_10_11, c10_weight, cat_b_11_12):
-        transition_val = row.get("class_transition")
-        category_val = row.get("category")
-        c9_pct = row.get("c9_percentile")
-        c10_pct = row.get("c10_percentile")
-        c11_pct = row.get("c11_percentile")
-
-        if transition_val == "10_to_11":
-            if category_val == "A" and c9_pct is not None and c10_pct is not None:
-                return round(c9_weight * c9_pct + (1.0 - c9_weight) * c10_pct, 4)
-            if category_val == "B" and c9_pct is not None:
-                return round(cat_b_10_11 * c9_pct, 4)
-        if transition_val == "11_to_12":
-            if category_val == "A" and c10_pct is not None and c11_pct is not None:
-                return round(c10_weight * c10_pct + (1.0 - c10_weight) * c11_pct, 4)
-            if category_val == "B" and c10_pct is not None:
-                return round(cat_b_11_12 * c10_pct, 4)
-        return None
-
-    def _calc_final(academic_val, bg_val, acad_weight):
-        if academic_val is None or bg_val is None:
-            return None
-        return round(acad_weight * academic_val + (1.0 - acad_weight) * bg_val, 4)
-
-    def _assign_ranks(rows, score_key):
-        scored = [
-            (row.get("application_id"), row.get(score_key))
-            for row in rows
-            if row.get(score_key) is not None
-        ]
-        scored.sort(key=lambda x: x[1], reverse=True)
-        ranks = {}
-        rank = 0
-        prev_score = None
-        for app_id, score_val in scored:
-            if prev_score is None or score_val != prev_score:
-                rank += 1
-                prev_score = score_val
-            ranks[app_id] = rank
-        return ranks
-
     rows_data = []
     for row in full_rows:
         row_dict = dict(zip(full_headers, row))
-        academic_new = _calc_academic(row_dict, w_c9_a, w_cat_b_10_11, w_c10_a2, w_cat_b_11_12)
-        final_new = _calc_final(academic_new, row_dict.get("background_score"), weight)
-        academic_prev = _calc_academic(row_dict, prev_w_c9_a, prev_w_cat_b_10_11, prev_w_c10_a2, prev_w_cat_b_11_12)
-        final_prev = _calc_final(academic_prev, row_dict.get("background_score"), prev_weight)
+        academic_new = _calc_academic(
+            row_dict,
+            weights["w_c9_a"],
+            weights["w_cat_b_10_11"],
+            weights["w_c10_a2"],
+            weights["w_cat_b_11_12"],
+        )
+        final_new = _calc_final(academic_new, row_dict.get("background_score"), weights["weight"])
+        academic_prev = _calc_academic(
+            row_dict,
+            weights["prev_w_c9_a"],
+            weights["prev_w_cat_b_10_11"],
+            weights["prev_w_c10_a2"],
+            weights["prev_w_cat_b_11_12"],
+        )
+        final_prev = _calc_final(academic_prev, row_dict.get("background_score"), weights["prev_weight"])
         row_dict["academic_score_calc"] = academic_new
         row_dict["final_score_calc"] = final_new
         row_dict["academic_score_prev"] = academic_prev
@@ -270,19 +310,19 @@ def index():
         full_rows=full_row_dicts,
         score_headers=score_headers,
         transition=transition,
-        weight=weight,
-        background_weight=background_weight,
-        w_c9_a=w_c9_a,
-        w_c10_a=w_c10_a,
-        w_cat_b_10_11=w_cat_b_10_11,
-        w_c10_a2=w_c10_a2,
-        w_c11_a=w_c11_a,
-        w_cat_b_11_12=w_cat_b_11_12,
-        prev_weight=prev_weight,
-        prev_w_c9_a=prev_w_c9_a,
-        prev_w_cat_b_10_11=prev_w_cat_b_10_11,
-        prev_w_c10_a2=prev_w_c10_a2,
-        prev_w_cat_b_11_12=prev_w_cat_b_11_12,
+        weight=weights["weight"],
+        background_weight=weights["background_weight"],
+        w_c9_a=weights["w_c9_a"],
+        w_c10_a=weights["w_c10_a"],
+        w_cat_b_10_11=weights["w_cat_b_10_11"],
+        w_c10_a2=weights["w_c10_a2"],
+        w_c11_a=weights["w_c11_a"],
+        w_cat_b_11_12=weights["w_cat_b_11_12"],
+        prev_weight=weights["prev_weight"],
+        prev_w_c9_a=weights["prev_w_c9_a"],
+        prev_w_cat_b_10_11=weights["prev_w_cat_b_10_11"],
+        prev_w_c10_a2=weights["prev_w_c10_a2"],
+        prev_w_cat_b_11_12=weights["prev_w_cat_b_11_12"],
         plot_points=plot_points,
         avg_rank_change=avg_rank_change,
         median_rank_change=median_rank_change,
@@ -293,7 +333,77 @@ def index():
         total=total,
         scored=scored,
         csv_name=csv_path.name,
+        csv_path=str(csv_path),
     )
+
+
+@app.route("/download")
+def download():
+    transition = request.args.get("transition")
+    if transition not in {"10_to_11", "11_to_12"}:
+        return "transition must be 10_to_11 or 11_to_12", 400
+
+    csv_path = Path(request.args.get("csv") or config.CSV)
+    refresh = request.args.get("refresh") == "1"
+    if not csv_path.exists():
+        return f"CSV file not found: {csv_path}", 400
+    if refresh or not config.DB.exists():
+        run_pipeline(csv_path)
+
+    weights = _parse_weights(request.args)
+    conn = sqlite3.connect(config.DB)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT *
+        FROM filter_application
+        WHERE class_transition = ?
+        """,
+        (transition,),
+    )
+    full_rows = cur.fetchall()
+    full_headers = [d[0] for d in cur.description]
+    conn.close()
+
+    rows_data = []
+    for row in full_rows:
+        row_dict = dict(zip(full_headers, row))
+        academic_new = _calc_academic(
+            row_dict,
+            weights["w_c9_a"],
+            weights["w_cat_b_10_11"],
+            weights["w_c10_a2"],
+            weights["w_cat_b_11_12"],
+        )
+        final_new = _calc_final(academic_new, row_dict.get("background_score"), weights["weight"])
+        row_dict["final_score_calc"] = final_new
+        rows_data.append(row_dict)
+
+    new_ranks = _assign_ranks(rows_data, "final_score_calc")
+    for row in rows_data:
+        row["new_rank"] = new_ranks.get(row.get("application_id"))
+
+    rows_data.sort(
+        key=lambda row: (row.get("final_score_calc") is None, -(row.get("final_score_calc") or 0))
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["application_id", "applicant_name", "applicant_email", "new_rank"])
+    for row in rows_data:
+        writer.writerow(
+            [
+                row.get("application_id"),
+                row.get("applicant_name"),
+                row.get("applicant_email"),
+                row.get("new_rank") or "",
+            ]
+        )
+
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = "text/csv; charset=utf-8"
+    response.headers["Content-Disposition"] = f"attachment; filename={transition}_ranks.csv"
+    return response
 
 
 if __name__ == "__main__":

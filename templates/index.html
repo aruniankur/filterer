@@ -27,6 +27,10 @@
             <a class="filter-pill {% if transition == '10_to_11' %}active{% endif %}" href="/?transition=10_to_11&weight={{ weight }}&w_c9_a={{ w_c9_a }}&w_cat_b_10_11={{ w_cat_b_10_11 }}&w_c10_a2={{ w_c10_a2 }}&w_cat_b_11_12={{ w_cat_b_11_12 }}&prev_weight={{ prev_weight }}&prev_w_c9_a={{ prev_w_c9_a }}&prev_w_cat_b_10_11={{ prev_w_cat_b_10_11 }}&prev_w_c10_a2={{ prev_w_c10_a2 }}&prev_w_cat_b_11_12={{ prev_w_cat_b_11_12 }}">10_to_11</a>
             <a class="filter-pill {% if transition == '11_to_12' %}active{% endif %}" href="/?transition=11_to_12&weight={{ weight }}&w_c9_a={{ w_c9_a }}&w_cat_b_10_11={{ w_cat_b_10_11 }}&w_c10_a2={{ w_c10_a2 }}&w_cat_b_11_12={{ w_cat_b_11_12 }}&prev_weight={{ prev_weight }}&prev_w_c9_a={{ prev_w_c9_a }}&prev_w_cat_b_10_11={{ prev_w_cat_b_10_11 }}&prev_w_c10_a2={{ prev_w_c10_a2 }}&prev_w_cat_b_11_12={{ prev_w_cat_b_11_12 }}">11_to_12</a>
           </div>
+          <div class="filters">
+            <a class="filter-pill" href="{{ url_for('download', transition='10_to_11', weight=weight, w_c9_a=w_c9_a, w_cat_b_10_11=w_cat_b_10_11, w_c10_a2=w_c10_a2, w_cat_b_11_12=w_cat_b_11_12, csv=csv_path) }}">Download 10_to_11 CSV</a>
+            <a class="filter-pill" href="{{ url_for('download', transition='11_to_12', weight=weight, w_c9_a=w_c9_a, w_cat_b_10_11=w_cat_b_10_11, w_c10_a2=w_c10_a2, w_cat_b_11_12=w_cat_b_11_12, csv=csv_path) }}">Download 11_to_12 CSV</a>
+          </div>
           <div class="slider-wrap">
             <div>Final score = (academic weight) * academic_score + (background weight) * background_score</div>
             <div class="slider-row">
