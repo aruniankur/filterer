@@ -266,6 +266,25 @@ def index():
             for label, count in items
         ]
 
+    def _state_breakdown(rows):
+        counts = {}
+        for row in rows:
+            raw = (row.get("school_state") or "").strip()
+            label = raw if raw else "Unknown"
+            counts[label] = counts.get(label, 0) + 1
+        if not counts:
+            return []
+        total = sum(counts.values())
+        items = sorted(counts.items(), key=lambda item: (-item[1], item[0].lower()))
+        return [
+            {
+                "label": label,
+                "count": count,
+                "percent": round(count / total * 100.0, 2),
+            }
+            for label, count in items
+        ]
+
     where_clause = ""
     where_params = []
     if transition in {"10_to_11", "11_to_12"}:
@@ -324,6 +343,7 @@ def index():
     category_pct = None
     gender_pct = None
     location_breakdown = []
+    state_breakdown = []
     if transition in {"10_to_11", "11_to_12"}:
         top_rows = [
             row
@@ -333,6 +353,7 @@ def index():
         category_pct = _category_percentages(top_rows)
         gender_pct = _gender_percentages(top_rows)
         location_breakdown = _location_breakdown(top_rows)
+        state_breakdown = _state_breakdown(top_rows)
 
     plot_points = [
         {
@@ -436,6 +457,7 @@ def index():
         gender_pct_m=gender_pct["M"] if gender_pct else None,
         gender_pct_f=gender_pct["F"] if gender_pct else None,
         location_breakdown=location_breakdown,
+        state_breakdown=state_breakdown,
         rank_limit=rank_limit,
         total=total,
         scored=scored,

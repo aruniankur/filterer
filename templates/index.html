@@ -266,6 +266,26 @@
               </tbody>
             </table>
           </div>
+          {% if transition in ['10_to_11', '11_to_12'] %}
+          <div class="state-card">
+            <div class="state-title">{{ transition }} State Distribution (Top {{ rank_limit }})</div>
+            {% if state_breakdown and state_breakdown|length > 0 %}
+            <div class="state-list">
+              {% for item in state_breakdown %}
+              <div class="state-row">
+                <div class="state-label">{{ item.label }}</div>
+                <div class="state-bar">
+                  <span style="width: {{ item.percent }}%"></span>
+                </div>
+                <div class="state-pct">{{ "%.2f%%" | format(item.percent) }} ({{ item.count }})</div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="state-empty">—</div>
+            {% endif %}
+          </div>
+          {% endif %}
         </section>
       </div>
 

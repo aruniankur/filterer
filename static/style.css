@@ -331,6 +331,63 @@ h1 {
   max-height: calc(100vh - 180px);
 }
 
+.state-card {
+  border-top: 1px solid var(--grid);
+  padding: 14px 16px 18px;
+  background: #fbf9f3;
+}
+
+.state-title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.state-list {
+  display: grid;
+  gap: 8px;
+}
+
+.state-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 220px) 1fr minmax(56px, 70px);
+  gap: 10px;
+  align-items: center;
+}
+
+.state-label {
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.state-bar {
+  position: relative;
+  height: 8px;
+  background: #efe7db;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.state-bar span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.state-pct {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.state-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 table {
   width: max-content;
   min-width: 100%;
