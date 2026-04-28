@@ -507,6 +507,13 @@ def download():
         return f"CSV file not found: {csv_path}", 400
     _ensure_db(csv_path, refresh)
 
+    try:
+        rank_limit = int(request.args.get("rank_limit", 100))
+    except (TypeError, ValueError):
+        rank_limit = 100
+    rank_limit = max(1, rank_limit)
+    buffer_size = 15
+
     weights = _parse_weights(request.args)
     conn = sqlite3.connect(config.DB)
     cur = conn.cursor()
@@ -544,18 +551,17 @@ def download():
         key=lambda row: (row.get("final_score_calc") is None, -(row.get("final_score_calc") or 0))
     )
 
+    ranked_rows = [row for row in rows_data if row.get("new_rank") is not None]
+    selected_rows = ranked_rows[:rank_limit]
+    waitlisted_rows = ranked_rows[rank_limit : rank_limit + buffer_size]
+
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["application_id", "applicant_name", "applicant_email", "new_rank"])
-    for row in rows_data:
-        writer.writerow(
-            [
-                row.get("application_id"),
-                row.get("applicant_name"),
-                row.get("applicant_email"),
-                row.get("new_rank") or "",
-            ]
-        )
+    writer.writerow(["application_id", "email", "status"])
+    for row in selected_rows:
+        writer.writerow([row.get("application_id"), row.get("applicant_email"), "selected"])
+    for row in waitlisted_rows:
+        writer.writerow([row.get("application_id"), row.get("applicant_email"), "waitlisted"])
 
     response = make_response(output.getvalue())
     response.headers["Content-Type"] = "text/csv; charset=utf-8"
