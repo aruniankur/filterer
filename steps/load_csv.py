@@ -21,6 +21,7 @@ HEADER_MAP = {
     "Section C - Institution Type":            "institution_type",
     "Section C - Medium":                      "medium",
     "Section C - School Location Type":        "school_location",
+    "Section C - School Name":                 "school_name",
     "Section C - School State":                "school_state",
     "Section D - Class 9 Board":               "c9_board",
     "Section D - Class 9 Board State":         "c9_board_state",
@@ -124,6 +125,7 @@ def load_csv(conn, csv_path):
         institution_type    TEXT,
         medium              TEXT,
         school_location     TEXT,
+        school_name         TEXT,
         school_state        TEXT,
         -- section E
         coaching_classes    TEXT,
@@ -232,7 +234,7 @@ def load_csv(conn, csv_path):
                 r["app_id"], r["program_type"], notes, r["name"], r["email"],
                 r["gender"], r["location_type"], r["sec_c_board"],
                 r["transition"], r["current_class"], r["institution_type"],
-                r["medium"], r["school_location"], r["school_state"],
+                r["medium"], r["school_location"], r["school_name"], r["school_state"],
                 r["coaching"], r["father_edu"], r["first_gen"], r["internet"], r["mother_edu"],
                 r["c9_board"], r["c9_board_state"],
                 _safe_float(r["c9_sci_m"]),  _safe_float(r["c9_sci_x"]),
@@ -273,7 +275,7 @@ def load_csv(conn, csv_path):
         INSERT INTO filter_application (
             application_id, program_type, admin_notes, applicant_name, applicant_email,
             gender, location_type, sec_c_board, class_transition, current_class, institution_type,
-            medium, school_location, school_state,
+            medium, school_location, school_name, school_state,
             coaching_classes, father_education, first_gen_learner, internet_access, mother_education,
             c9_board, c9_board_state,
             c9_science_marks, c9_science_max, c9_math_marks, c9_math_max, c9_percentage,
@@ -283,7 +285,7 @@ def load_csv(conn, csv_path):
             c11_physics_marks, c11_physics_max, c11_chemistry_marks, c11_chemistry_max,
             c11_math_marks, c11_math_max, c11_biology_marks, c11_biology_max, c11_percentage,
             assigned_board_category, rule_applied
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, inserts)
     conn.commit()
     print(f"  Inserted {len(inserts)} rows from CSV.")

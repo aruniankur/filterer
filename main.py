@@ -121,6 +121,25 @@ def _assign_ranks(rows, score_key):
     return ranks
 
 
+def _db_has_column(conn, table, column):
+    cur = conn.cursor()
+    cur.execute(f"PRAGMA table_info({table})")
+    return any(row[1] == column for row in cur.fetchall())
+
+
+def _ensure_db(csv_path, refresh=False):
+    if refresh or not config.DB.exists():
+        run_pipeline(csv_path)
+        return
+    conn = sqlite3.connect(config.DB)
+    try:
+        has_school_name = _db_has_column(conn, "filter_application", "school_name")
+    finally:
+        conn.close()
+    if not has_school_name:
+        run_pipeline(csv_path)
+
+
 def _merge_csvs(out_path, csv_paths):
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", newline="", encoding="utf-8") as out_file:
@@ -209,8 +228,7 @@ def index():
     if not csv_path.exists():
         return f"CSV file not found: {csv_path}", 400
 
-    if refresh or not config.DB.exists():
-        run_pipeline(csv_path)
+    _ensure_db(csv_path, refresh)
 
     conn = sqlite3.connect(config.DB)
     cur = conn.cursor()
@@ -407,6 +425,7 @@ def index():
         "applicant_email",
         "class_transition",
         "current_class",
+        "school_name",
         "category",
         "c9_percentile",
         "c10_percentile",
@@ -477,8 +496,7 @@ def download():
     csv_path, _ = _resolve_csv_path(request.args, refresh)
     if not csv_path.exists():
         return f"CSV file not found: {csv_path}", 400
-    if refresh or not config.DB.exists():
-        run_pipeline(csv_path)
+    _ensure_db(csv_path, refresh)
 
     weights = _parse_weights(request.args)
     conn = sqlite3.connect(config.DB)
