@@ -1,0 +1,17 @@
+class_9_subj1 -> Science
+class_9_subj2 -> Mathematics
+class_9_subj3 -> Computer Science/AI/IT
+class_9_subj4 -> Other Science
+
+class_10_subj2 -> Mathematics
+class_10_subj1 -> Science
+class_10_subj3 -> Computer Science/AI/IT
+class_10_subj4 -> Other Science
+
+class_11_subj1 -> Physics
+class_11_subj2 -> Chemistry
+class_11_subj3 -> Mathematics
+class_11_subj4 -> Biology
+class_11_subj5 -> Computer Science/AI/IT
+
+

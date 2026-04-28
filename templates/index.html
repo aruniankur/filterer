@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>School Filter Results</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>School Filter Results</h1>
+        <div class="meta">
+          CSV: <code>{{ csv_name }}</code> | Total: <strong>{{ total }}</strong> | Scored:
+          <strong>{{ scored }}</strong>
+        </div>
+      </header>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <div class="filters">
+            <a class="filter-pill {% if transition == 'all' %}active{% endif %}" href="/?transition=all&weight={{ weight }}&w_c9_a={{ w_c9_a }}&w_cat_b_10_11={{ w_cat_b_10_11 }}&w_c10_a2={{ w_c10_a2 }}&w_cat_b_11_12={{ w_cat_b_11_12 }}&prev_weight={{ prev_weight }}&prev_w_c9_a={{ prev_w_c9_a }}&prev_w_cat_b_10_11={{ prev_w_cat_b_10_11 }}&prev_w_c10_a2={{ prev_w_c10_a2 }}&prev_w_cat_b_11_12={{ prev_w_cat_b_11_12 }}">All</a>
+            <a class="filter-pill {% if transition == '10_to_11' %}active{% endif %}" href="/?transition=10_to_11&weight={{ weight }}&w_c9_a={{ w_c9_a }}&w_cat_b_10_11={{ w_cat_b_10_11 }}&w_c10_a2={{ w_c10_a2 }}&w_cat_b_11_12={{ w_cat_b_11_12 }}&prev_weight={{ prev_weight }}&prev_w_c9_a={{ prev_w_c9_a }}&prev_w_cat_b_10_11={{ prev_w_cat_b_10_11 }}&prev_w_c10_a2={{ prev_w_c10_a2 }}&prev_w_cat_b_11_12={{ prev_w_cat_b_11_12 }}">10_to_11</a>
+            <a class="filter-pill {% if transition == '11_to_12' %}active{% endif %}" href="/?transition=11_to_12&weight={{ weight }}&w_c9_a={{ w_c9_a }}&w_cat_b_10_11={{ w_cat_b_10_11 }}&w_c10_a2={{ w_c10_a2 }}&w_cat_b_11_12={{ w_cat_b_11_12 }}&prev_weight={{ prev_weight }}&prev_w_c9_a={{ prev_w_c9_a }}&prev_w_cat_b_10_11={{ prev_w_cat_b_10_11 }}&prev_w_c10_a2={{ prev_w_c10_a2 }}&prev_w_cat_b_11_12={{ prev_w_cat_b_11_12 }}">11_to_12</a>
+          </div>
+          <div class="slider-wrap">
+            <div>Final score = (academic weight) * academic_score + (background weight) * background_score</div>
+            <div class="slider-row">
+              <label for="weightSlider">Academic weight</label>
+              <input
+                id="weightSlider"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="{{ weight }}"
+              />
+              <span class="weight-badge" id="weightLabel">{{ "%.2f" | format(weight) }}</span>
+              <span>Background weight:</span>
+              <span class="weight-badge" id="bgLabel">{{ "%.2f" | format(background_weight) }}</span>
+            </div>
+            <div class="slider-group">
+              <div>10_to_11 (Category A): c9 weight = a, c10 weight = 1 - a</div>
+              <div class="slider-row">
+                <label for="c9aSlider">a (c9)</label>
+                <input id="c9aSlider" type="range" min="0" max="1" step="0.01" value="{{ w_c9_a }}" />
+                <span class="weight-badge" id="c9aLabel">{{ "%.2f" | format(w_c9_a) }}</span>
+                <span>c10:</span>
+                <span class="weight-badge" id="c10aLabel">{{ "%.2f" | format(w_c10_a) }}</span>
+              </div>
+
+              <div>10_to_11 (Category B): c9 weight = b</div>
+              <div class="slider-row">
+                <label for="catb1011Slider">b (c9)</label>
+                <input id="catb1011Slider" type="range" min="0" max="1" step="0.01" value="{{ w_cat_b_10_11 }}" />
+                <span class="weight-badge" id="catb1011Label">{{ "%.2f" | format(w_cat_b_10_11) }}</span>
+              </div>
+
+              <div>11_to_12 (Category A): c10 weight = c, c11 weight = 1 - c</div>
+              <div class="slider-row">
+                <label for="c10a2Slider">c (c10)</label>
+                <input id="c10a2Slider" type="range" min="0" max="1" step="0.01" value="{{ w_c10_a2 }}" />
+                <span class="weight-badge" id="c10a2Label">{{ "%.2f" | format(w_c10_a2) }}</span>
+                <span>c11:</span>
+                <span class="weight-badge" id="c11aLabel">{{ "%.2f" | format(w_c11_a) }}</span>
+              </div>
+
+              <div>11_to_12 (Category B): c10 weight = d</div>
+              <div class="slider-row">
+                <label for="catb1112Slider">d (c10)</label>
+                <input id="catb1112Slider" type="range" min="0" max="1" step="0.01" value="{{ w_cat_b_11_12 }}" />
+                <span class="weight-badge" id="catb1112Label">{{ "%.2f" | format(w_cat_b_11_12) }}</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="panel">
+          <div class="plot-card">
+            <div class="plot-header">
+              <div class="plot-title">Rank Shift Scatter</div>
+              <div class="plot-subtitle">x = previous rank, y = new rank. Click a point to see details.</div>
+            </div>
+            <div class="plot-wrap">
+              <canvas id="rankPlot" width="900" height="380"></canvas>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  {% for h in headers %}
+                  <th>
+                    {% if h == 'final_score_calc' %}
+                      final_score
+                    {% elif h == 'academic_score_calc' %}
+                      academic_score
+                    {% elif h == 'prev_rank' %}
+                      prev_rank
+                    {% elif h == 'new_rank' %}
+                      new_rank
+                    {% elif h == 'rank_change' %}
+                      rank_change
+                    {% else %}
+                      {{ h }}
+                    {% endif %}
+                  </th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                <tr data-full='{{ full_rows[loop.index0] | tojson }}'>
+                  {% for v in row %}
+                    {% set header = headers[loop.index0] %}
+                    {% if header in score_headers %}
+                  <td class="score">{{ v }}</td>
+                    {% elif header == 'rank_change' %}
+                      {% if v is none %}
+                  <td class="rank-change neutral">—</td>
+                      {% elif v > 0 %}
+                  <td class="rank-change pos">+{{ v }}</td>
+                      {% elif v < 0 %}
+                  <td class="rank-change neg">{{ v }}</td>
+                      {% else %}
+                  <td class="rank-change neutral">0</td>
+                      {% endif %}
+                    {% else %}
+                  <td>{{ v }}</td>
+                    {% endif %}
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div class="footer">
+        Refresh data by reloading with <code>?refresh=1</code> or change CSV with
+        <code>?csv=/absolute/path/to/file.csv</code>.
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="modal">
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <div class="modal-title" id="modalTitle">Application Details</div>
+          <button class="close-btn" type="button" id="modalClose">×</button>
+        </div>
+        <div class="details-grid" id="modalBody"></div>
+      </div>
+    </div>
+
+    <script>
+      const modal = document.getElementById("modal");
+      const modalBody = document.getElementById("modalBody");
+      const modalTitle = document.getElementById("modalTitle");
+      const modalClose = document.getElementById("modalClose");
+      const plotCanvas = document.getElementById("rankPlot");
+      const plotPoints = {{ plot_points | tojson }};
+      const fullRows = {{ full_rows | tojson }};
+      const rowsById = new Map(fullRows.map((row) => [row.application_id, row]));
+
+      const closeModal = () => {
+        modal.style.display = "none";
+        modalBody.innerHTML = "";
+      };
+
+      modalClose.addEventListener("click", closeModal);
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) {
+          closeModal();
+        }
+      });
+
+      document.querySelectorAll("tbody tr").forEach((row) => {
+        row.addEventListener("click", () => {
+          const data = JSON.parse(row.dataset.full);
+          modalTitle.textContent = `Application ${data.application_id || ""}`.trim();
+          modalBody.innerHTML = Object.entries(data)
+            .map(
+              ([key, value]) =>
+                `<div class="details-item"><div class="details-key">${key}</div><div>${value ?? ""}</div></div>`
+            )
+            .join("");
+          modal.style.display = "flex";
+        });
+      });
+
+      const slider = document.getElementById("weightSlider");
+      const weightLabel = document.getElementById("weightLabel");
+      const bgLabel = document.getElementById("bgLabel");
+      const c9aSlider = document.getElementById("c9aSlider");
+      const c9aLabel = document.getElementById("c9aLabel");
+      const c10aLabel = document.getElementById("c10aLabel");
+      const catb1011Slider = document.getElementById("catb1011Slider");
+      const catb1011Label = document.getElementById("catb1011Label");
+      const c10a2Slider = document.getElementById("c10a2Slider");
+      const c10a2Label = document.getElementById("c10a2Label");
+      const c11aLabel = document.getElementById("c11aLabel");
+      const catb1112Slider = document.getElementById("catb1112Slider");
+      const catb1112Label = document.getElementById("catb1112Label");
+
+      const updateLabels = () => {
+        const value = parseFloat(slider.value || "0");
+        const bgValue = 1 - value;
+        weightLabel.textContent = value.toFixed(2);
+        bgLabel.textContent = bgValue.toFixed(2);
+        const c9 = parseFloat(c9aSlider.value || "0");
+        c9aLabel.textContent = c9.toFixed(2);
+        c10aLabel.textContent = (1 - c9).toFixed(2);
+        const b1011 = parseFloat(catb1011Slider.value || "0");
+        catb1011Label.textContent = b1011.toFixed(2);
+        const c10 = parseFloat(c10a2Slider.value || "0");
+        c10a2Label.textContent = c10.toFixed(2);
+        c11aLabel.textContent = (1 - c10).toFixed(2);
+        const b1112 = parseFloat(catb1112Slider.value || "0");
+        catb1112Label.textContent = b1112.toFixed(2);
+      };
+
+      const prevWeights = {
+        weight: {{ weight }},
+        w_c9_a: {{ w_c9_a }},
+        w_cat_b_10_11: {{ w_cat_b_10_11 }},
+        w_c10_a2: {{ w_c10_a2 }},
+        w_cat_b_11_12: {{ w_cat_b_11_12 }},
+      };
+
+      const updateUrl = () => {
+        const url = new URL(window.location.href);
+        url.searchParams.set("weight", slider.value);
+        url.searchParams.set("w_c9_a", c9aSlider.value);
+        url.searchParams.set("w_cat_b_10_11", catb1011Slider.value);
+        url.searchParams.set("w_c10_a2", c10a2Slider.value);
+        url.searchParams.set("w_cat_b_11_12", catb1112Slider.value);
+        url.searchParams.set("prev_weight", prevWeights.weight);
+        url.searchParams.set("prev_w_c9_a", prevWeights.w_c9_a);
+        url.searchParams.set("prev_w_cat_b_10_11", prevWeights.w_cat_b_10_11);
+        url.searchParams.set("prev_w_c10_a2", prevWeights.w_c10_a2);
+        url.searchParams.set("prev_w_cat_b_11_12", prevWeights.w_cat_b_11_12);
+        url.searchParams.delete("refresh");
+        window.location.href = url.toString();
+      };
+
+      slider.addEventListener("input", updateLabels);
+      slider.addEventListener("change", updateUrl);
+      c9aSlider.addEventListener("input", updateLabels);
+      c9aSlider.addEventListener("change", updateUrl);
+      catb1011Slider.addEventListener("input", updateLabels);
+      catb1011Slider.addEventListener("change", updateUrl);
+      c10a2Slider.addEventListener("input", updateLabels);
+      c10a2Slider.addEventListener("change", updateUrl);
+      catb1112Slider.addEventListener("input", updateLabels);
+      catb1112Slider.addEventListener("change", updateUrl);
+      updateLabels();
+
+      const drawPlot = () => {
+        if (!plotCanvas || plotPoints.length === 0) {
+          return;
+        }
+
+        const ctx = plotCanvas.getContext("2d");
+        const padding = 40;
+        const width = plotCanvas.width;
+        const height = plotCanvas.height;
+        ctx.clearRect(0, 0, width, height);
+
+        const maxRank = Math.max(...plotPoints.map((p) => Math.max(p.prev_rank, p.new_rank)));
+
+        const xScale = (x) => padding + (x - 1) / (maxRank - 1 || 1) * (width - padding * 2);
+        const yScale = (y) => height - padding - (y - 1) / (maxRank - 1 || 1) * (height - padding * 2);
+
+        ctx.strokeStyle = "#e0d9cf";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(xScale(1), yScale(1));
+        ctx.lineTo(xScale(maxRank), yScale(maxRank));
+        ctx.stroke();
+
+        ctx.fillStyle = "#0e7490";
+        plotPoints.forEach((p) => {
+          const x = xScale(p.prev_rank);
+          const y = yScale(p.new_rank);
+          ctx.beginPath();
+          ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.fillStyle = "#6b5f4f";
+        ctx.font = "12px 'IBM Plex Sans', sans-serif";
+        ctx.fillText("Prev rank", padding, height - 12);
+        ctx.save();
+        ctx.translate(12, height - padding);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText("New rank", 0, 0);
+        ctx.restore();
+      };
+
+      const findNearestPoint = (x, y) => {
+        const padding = 40;
+        const width = plotCanvas.width;
+        const height = plotCanvas.height;
+        const maxRank = Math.max(...plotPoints.map((p) => Math.max(p.prev_rank, p.new_rank)));
+        const xScale = (val) => padding + (val - 1) / (maxRank - 1 || 1) * (width - padding * 2);
+        const yScale = (val) => height - padding - (val - 1) / (maxRank - 1 || 1) * (height - padding * 2);
+
+        let best = null;
+        let bestDist = 999999;
+        plotPoints.forEach((p) => {
+          const px = xScale(p.prev_rank);
+          const py = yScale(p.new_rank);
+          const dx = px - x;
+          const dy = py - y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = p;
+          }
+        });
+        if (bestDist <= 10) {
+          return best;
+        }
+        return null;
+      };
+
+      if (plotCanvas) {
+        drawPlot();
+        plotCanvas.addEventListener("click", (event) => {
+          const rect = plotCanvas.getBoundingClientRect();
+          const scaleX = plotCanvas.width / rect.width;
+          const scaleY = plotCanvas.height / rect.height;
+          const x = (event.clientX - rect.left) * scaleX;
+          const y = (event.clientY - rect.top) * scaleY;
+          const point = findNearestPoint(x, y);
+          if (!point) {
+            return;
+          }
+          const data = rowsById.get(point.application_id);
+          if (!data) {
+            return;
+          }
+          modalTitle.textContent = `Application ${data.application_id || ""}`.trim();
+          modalBody.innerHTML = Object.entries(data)
+            .map(
+              ([key, value]) =>
+                `<div class="details-item"><div class="details-key">${key}</div><div>${value ?? ""}</div></div>`
+            )
+            .join("");
+          modal.style.display = "flex";
+        });
+        window.addEventListener("resize", drawPlot);
+      }
+    </script>
+  </body>
+</html>

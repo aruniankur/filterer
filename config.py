@@ -1,0 +1,75 @@
+"""
+config.py — Single source of truth for all configurable weightages.
+Edit this file to tune the pipeline without touching any step logic.
+"""
+
+from pathlib import Path
+print(f"  Loaded config from {Path(__file__).name}")
+# ─────────────────────────────────────────────
+# File paths
+# ─────────────────────────────────────────────
+DB  = Path(__file__).resolve().parent / "school_filter.db"
+CSV = Path(__file__).resolve().parent / "trail_1/till_18_school_program_applications_all_submitted_20260426_180811.csv"
+
+
+# ═════════════════════════════════════════════════════════════════════════════════════════
+# FINAL SCORE WEIGHTS
+# Final Score = FINAL_ACADEMIC_WEIGHT * academic_score + FINAL_BACKGROUND_WEIGHT * background_score
+# ═════════════════════════════════════════════════════════════════════════════════════════
+
+FINAL_ACADEMIC_WEIGHT    = 0.80  # weight for academic percentile score
+FINAL_BACKGROUND_WEIGHT  = 0.20  # weight for background score
+
+
+# ═════════════════════════════════════════════════════════════════════════════════════════
+# ACADEMIC SCORE WEIGHTS
+# ═════════════════════════════════════════════════════════════════════════════════════════
+
+# 10_to_11, Category A: score = W_C9_A * c9_percentile + W_C10_A * c10_percentile
+W_C9_A  = 0.2   # weight for class 9 percentile  (cat A, 10_to_11)
+W_C10_A = 0.8   # weight for class 10 percentile (cat A, 10_to_11)
+
+# 10_to_11, Category B: score = W_CAT_B_10_11 * c9_percentile
+W_CAT_B_10_11 = 0.75  # weight for c9 percentile (cat B, 10_to_11)
+
+# 11_to_12, Category A: score = W_C10_A2 * c10_percentile + W_C11_A * c11_percentile
+W_C10_A2 = 0.80  # weight for class 10 percentile (cat A, 11_to_12)
+W_C11_A  = 0.20  # weight for class 11 percentile (cat A, 11_to_12)
+
+# 11_to_12, Category B: score = W_CAT_B_11_12 * c10_percentile
+W_CAT_B_11_12 = 0.90  # weight for c10 percentile (cat B, 11_to_12)
+
+
+# ═════════════════════════════════════════════════════════════════════════════════════════
+# BACKGROUND SCORE WEIGHTS  (must sum to BG_MAX_RAW = 20)
+# ═══════════════════════════════════════════════════════════
+
+BG_MAX_RAW   = 20  # denominator for normalisation
+BG_SOFT_CAP  = 90  # background score is capped at this value (out of 100)
+
+# Gender (max 1)
+BG_GENDER_FEMALE = 1  # Female
+BG_GENDER_MALE   = 0  # Male
+
+# Home location (max 8)
+BG_LOC_VILLAGE     = 8  # Village
+BG_LOC_RURAL       = 6  # Rural
+BG_LOC_SEMI_URBAN  = 4  # Semi-urban
+BG_LOC_SMALL_TOWN  = 3  # Small Town
+BG_LOC_MEDIUM_TOWN = 2  # Medium Town / District HQ
+BG_LOC_BIG_CITY    = 0  # Big City / Metro
+
+# School type (max 4)
+BG_INST_GOVERNMENT = 4  # Government school
+BG_INST_AIDED      = 3  # Government-aided school
+BG_INST_PRIVATE    = 0  # Private / Others / unknown
+
+# Internet access (max 3)
+BG_INTERNET_NO       = 3  # No internet
+BG_INTERNET_LIMITED  = 2  # Limited internet
+BG_INTERNET_RELIABLE = 1  # Reliable internet
+BG_INTERNET_BLANK    = 0  # Blank / unknown
+
+# First-generation learner (max 4)
+BG_FIRSTGEN_YES = 4  # First-generation learner
+BG_FIRSTGEN_NO  = 0  # Not first-generation / blank
