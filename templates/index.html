@@ -85,8 +85,30 @@
               <div class="plot-title">Rank Shift Scatter</div>
               <div class="plot-subtitle">x = previous rank, y = new rank. Click a point to see details.</div>
             </div>
-            <div class="plot-wrap">
-              <canvas id="rankPlot" width="900" height="380"></canvas>
+            <div class="plot-grid">
+              <div class="plot-wrap">
+                <canvas id="rankPlot" width="900" height="380"></canvas>
+              </div>
+              <div class="kpi-grid">
+                <div class="kpi-card">
+                  <div class="kpi-label">Avg rank change</div>
+                  <div class="kpi-value">{{ avg_rank_change if avg_rank_change is not none else "—" }}</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">Median rank change</div>
+                  <div class="kpi-value">{{ median_rank_change if median_rank_change is not none else "—" }}</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">Top gainer</div>
+                  <div class="kpi-value">{{ top_gainer_change if top_gainer_change is not none else "—" }}</div>
+                  <div class="kpi-sub">{{ top_gainer_name if top_gainer_name else "" }}</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">Top loser</div>
+                  <div class="kpi-value">{{ top_loser_change if top_loser_change is not none else "—" }}</div>
+                  <div class="kpi-sub">{{ top_loser_name if top_loser_name else "" }}</div>
+                </div>
+              </div>
             </div>
           </div>
           <div class="table-wrap">
@@ -266,9 +288,14 @@
         }
 
         const ctx = plotCanvas.getContext("2d");
+        const rect = plotCanvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        plotCanvas.width = rect.width * dpr;
+        plotCanvas.height = rect.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         const padding = 40;
-        const width = plotCanvas.width;
-        const height = plotCanvas.height;
+        const width = rect.width;
+        const height = rect.height;
         ctx.clearRect(0, 0, width, height);
 
         const maxRank = Math.max(...plotPoints.map((p) => Math.max(p.prev_rank, p.new_rank)));
@@ -304,8 +331,8 @@
 
       const findNearestPoint = (x, y) => {
         const padding = 40;
-        const width = plotCanvas.width;
-        const height = plotCanvas.height;
+        const width = plotCanvas.getBoundingClientRect().width;
+        const height = plotCanvas.getBoundingClientRect().height;
         const maxRank = Math.max(...plotPoints.map((p) => Math.max(p.prev_rank, p.new_rank)));
         const xScale = (val) => padding + (val - 1) / (maxRank - 1 || 1) * (width - padding * 2);
         const yScale = (val) => height - padding - (val - 1) / (maxRank - 1 || 1) * (height - padding * 2);
@@ -333,10 +360,8 @@
         drawPlot();
         plotCanvas.addEventListener("click", (event) => {
           const rect = plotCanvas.getBoundingClientRect();
-          const scaleX = plotCanvas.width / rect.width;
-          const scaleY = plotCanvas.height / rect.height;
-          const x = (event.clientX - rect.left) * scaleX;
-          const y = (event.clientY - rect.top) * scaleY;
+          const x = event.clientX - rect.left;
+          const y = event.clientY - rect.top;
           const point = findNearestPoint(x, y);
           if (!point) {
             return;

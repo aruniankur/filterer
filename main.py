@@ -4,6 +4,7 @@
 from pathlib import Path
 import sqlite3
 import csv
+import statistics
 
 from flask import Flask, render_template, request
 
@@ -203,6 +204,28 @@ def index():
         if row.get("prev_rank") is not None and row.get("new_rank") is not None
     ]
 
+    rank_changes = [row.get("rank_change") for row in rows_data if row.get("rank_change") is not None]
+    if rank_changes:
+        avg_rank_change = round(sum(rank_changes) / len(rank_changes), 2)
+        median_rank_change = round(statistics.median(rank_changes), 2)
+        top_gainer = max(rows_data, key=lambda r: r.get("rank_change") or float("-inf"))
+        top_loser = min(rows_data, key=lambda r: r.get("rank_change") or float("inf"))
+    else:
+        avg_rank_change = None
+        median_rank_change = None
+        top_gainer = None
+        top_loser = None
+
+    def _display_name(row):
+        if not row:
+            return None
+        name = row.get("applicant_name") or ""
+        app_id = row.get("application_id") or ""
+        label = f"{app_id}"
+        if name:
+            label = f"{app_id} ({name})"
+        return label.strip()
+
     rows_data.sort(
         key=lambda row: (row.get("final_score_calc") is None, -(row.get("final_score_calc") or 0))
     )
@@ -257,6 +280,12 @@ def index():
         prev_w_c10_a2=prev_w_c10_a2,
         prev_w_cat_b_11_12=prev_w_cat_b_11_12,
         plot_points=plot_points,
+        avg_rank_change=avg_rank_change,
+        median_rank_change=median_rank_change,
+        top_gainer_name=_display_name(top_gainer),
+        top_gainer_change=top_gainer.get("rank_change") if top_gainer else None,
+        top_loser_name=_display_name(top_loser),
+        top_loser_change=top_loser.get("rank_change") if top_loser else None,
         total=total,
         scored=scored,
         csv_name=csv_path.name,
