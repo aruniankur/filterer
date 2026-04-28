@@ -9,7 +9,9 @@ print(f"  Loaded config from {Path(__file__).name}")
 # File paths
 # ─────────────────────────────────────────────
 DB  = Path(__file__).resolve().parent / "school_filter.db"
-CSV = Path(__file__).resolve().parent / "trail_1/till_18_school_program_applications_all_submitted_20260426_180811.csv"
+CSV_TILL_18 = Path(__file__).resolve().parent / "trail_1/till_18_school_program_applications_all_submitted_20260426_180811.csv"
+CSV_AFTER_18 = Path(__file__).resolve().parent / "trail_1/after_18_school_program_applications_all_submitted_20260426_181124.csv"
+CSV = CSV_TILL_18
 
 
 # ═════════════════════════════════════════════════════════════════════════════════════════

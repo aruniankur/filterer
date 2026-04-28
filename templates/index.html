@@ -28,8 +28,27 @@
             <a class="filter-pill {% if transition == '11_to_12' %}active{% endif %}" href="/?transition=11_to_12&weight={{ weight }}&w_c9_a={{ w_c9_a }}&w_cat_b_10_11={{ w_cat_b_10_11 }}&w_c10_a2={{ w_c10_a2 }}&w_cat_b_11_12={{ w_cat_b_11_12 }}&prev_weight={{ prev_weight }}&prev_w_c9_a={{ prev_w_c9_a }}&prev_w_cat_b_10_11={{ prev_w_cat_b_10_11 }}&prev_w_c10_a2={{ prev_w_c10_a2 }}&prev_w_cat_b_11_12={{ prev_w_cat_b_11_12 }}">11_to_12</a>
           </div>
           <div class="filters">
-            <a class="filter-pill" href="{{ url_for('download', transition='10_to_11', weight=weight, w_c9_a=w_c9_a, w_cat_b_10_11=w_cat_b_10_11, w_c10_a2=w_c10_a2, w_cat_b_11_12=w_cat_b_11_12, csv=csv_path) }}">Download 10_to_11 CSV</a>
-            <a class="filter-pill" href="{{ url_for('download', transition='11_to_12', weight=weight, w_c9_a=w_c9_a, w_cat_b_10_11=w_cat_b_10_11, w_c10_a2=w_c10_a2, w_cat_b_11_12=w_cat_b_11_12, csv=csv_path) }}">Download 11_to_12 CSV</a>
+            <label class="filter-label" for="csvMode">CSV</label>
+            <select id="csvMode" class="csv-select">
+              <option value="till_18" {% if csv_mode == 'till_18' %}selected{% endif %}>till_18</option>
+              <option value="after_18" {% if csv_mode == 'after_18' %}selected{% endif %}>after_18</option>
+              <option value="both" {% if csv_mode == 'both' %}selected{% endif %}>both (merged)</option>
+            </select>
+          </div>
+          <div class="filters">
+            <a class="filter-pill" href="{{ url_for('download', transition='10_to_11', weight=weight, w_c9_a=w_c9_a, w_cat_b_10_11=w_cat_b_10_11, w_c10_a2=w_c10_a2, w_cat_b_11_12=w_cat_b_11_12, csv_mode=csv_mode, csv=csv_path) }}">Download 10_to_11 CSV</a>
+            <a class="filter-pill" href="{{ url_for('download', transition='11_to_12', weight=weight, w_c9_a=w_c9_a, w_cat_b_10_11=w_cat_b_10_11, w_c10_a2=w_c10_a2, w_cat_b_11_12=w_cat_b_11_12, csv_mode=csv_mode, csv=csv_path) }}">Download 11_to_12 CSV</a>
+          </div>
+          <div class="filters">
+            <label class="filter-label" for="rankLimit">Top rank</label>
+            <input
+              id="rankLimit"
+              class="weight-input"
+              type="number"
+              min="1"
+              step="1"
+              value="{{ rank_limit }}"
+            />
           </div>
           <div class="slider-wrap">
             <div>Final score = (academic weight) * academic_score + (background weight) * background_score</div>
@@ -125,6 +144,7 @@
                 <span class="weight-badge" id="catb1112Label">{{ "%.2f" | format(w_cat_b_11_12) }}</span>
               </div>
             </div>
+            <button class="apply-btn" type="button" id="applyFilters">Apply changes</button>
           </div>
         </aside>
 
@@ -157,6 +177,16 @@
                   <div class="kpi-value">{{ top_loser_change if top_loser_change is not none else "—" }}</div>
                   <div class="kpi-sub">{{ top_loser_name if top_loser_name else "" }}</div>
                 </div>
+                {% if transition in ['10_to_11', '11_to_12'] %}
+                <div class="kpi-card">
+                  <div class="kpi-label">{{ transition }} % Category A (Top {{ rank_limit }})</div>
+                  <div class="kpi-value">{{ ("%.2f%%" | format(cat_pct_a)) if cat_pct_a is not none else "—" }}</div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-label">{{ transition }} % Category B (Top {{ rank_limit }})</div>
+                  <div class="kpi-value">{{ ("%.2f%%" | format(cat_pct_b)) if cat_pct_b is not none else "—" }}</div>
+                </div>
+                {% endif %}
               </div>
             </div>
           </div>
@@ -266,6 +296,9 @@
 
       const slider = document.getElementById("weightSlider");
       const weightInput = document.getElementById("weightInput");
+      const csvMode = document.getElementById("csvMode");
+      const rankLimit = document.getElementById("rankLimit");
+      const applyFilters = document.getElementById("applyFilters");
       const weightLabel = document.getElementById("weightLabel");
       const bgLabel = document.getElementById("bgLabel");
       const c9aSlider = document.getElementById("c9aSlider");
@@ -322,6 +355,15 @@
 
       const updateUrl = () => {
         const url = new URL(window.location.href);
+        if (csvMode) {
+          url.searchParams.set("csv_mode", csvMode.value);
+          url.searchParams.delete("csv");
+        }
+        if (rankLimit) {
+          const limitValue = Math.max(1, parseInt(rankLimit.value || "1", 10));
+          rankLimit.value = limitValue;
+          url.searchParams.set("rank_limit", limitValue);
+        }
         url.searchParams.set("weight", slider.value);
         url.searchParams.set("w_c9_a", c9aSlider.value);
         url.searchParams.set("w_cat_b_10_11", catb1011Slider.value);
@@ -343,27 +385,22 @@
           updateLabels();
         };
         input.addEventListener("input", syncValue);
-        input.addEventListener("change", () => {
-          syncValue();
-          updateUrl();
-        });
+        input.addEventListener("change", syncValue);
       };
 
       slider.addEventListener("input", updateLabels);
-      slider.addEventListener("change", updateUrl);
       bindNumberInput(weightInput, slider);
       c9aSlider.addEventListener("input", updateLabels);
-      c9aSlider.addEventListener("change", updateUrl);
       bindNumberInput(c9aInput, c9aSlider);
       catb1011Slider.addEventListener("input", updateLabels);
-      catb1011Slider.addEventListener("change", updateUrl);
       bindNumberInput(catb1011Input, catb1011Slider);
       c10a2Slider.addEventListener("input", updateLabels);
-      c10a2Slider.addEventListener("change", updateUrl);
       bindNumberInput(c10a2Input, c10a2Slider);
       catb1112Slider.addEventListener("input", updateLabels);
-      catb1112Slider.addEventListener("change", updateUrl);
       bindNumberInput(catb1112Input, catb1112Slider);
+      if (applyFilters) {
+        applyFilters.addEventListener("click", updateUrl);
+      }
       updateLabels();
 
       const drawPlot = () => {

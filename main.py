@@ -121,6 +121,38 @@ def _assign_ranks(rows, score_key):
     return ranks
 
 
+def _merge_csvs(out_path, csv_paths):
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", newline="", encoding="utf-8") as out_file:
+        writer = None
+        for csv_path in csv_paths:
+            with open(csv_path, encoding="utf-8-sig") as in_file:
+                reader = csv.DictReader(in_file)
+                if not reader.fieldnames:
+                    continue
+                if writer is None:
+                    writer = csv.DictWriter(out_file, fieldnames=reader.fieldnames)
+                    writer.writeheader()
+                for row in reader:
+                    writer.writerow(row)
+
+
+def _resolve_csv_path(args, refresh):
+    csv_override = args.get("csv")
+    if csv_override:
+        return Path(csv_override), "custom"
+
+    csv_mode = args.get("csv_mode") or "till_18"
+    if csv_mode == "after_18":
+        return config.CSV_AFTER_18, csv_mode
+    if csv_mode == "both":
+        merged_path = config.CSV_TILL_18.parent / "merged_till_after.csv"
+        if refresh or not merged_path.exists():
+            _merge_csvs(merged_path, [config.CSV_TILL_18, config.CSV_AFTER_18])
+        return merged_path, csv_mode
+    return config.CSV_TILL_18, "till_18"
+
+
 def _export_transition_csv(conn, out_path, transition):
     cur = conn.cursor()
     cur.execute(
@@ -164,9 +196,14 @@ def run_pipeline(csv_path):
 
 @app.route("/")
 def index():
-    csv_path = Path(request.args.get("csv") or config.CSV)
     refresh = request.args.get("refresh") == "1"
+    csv_path, csv_mode = _resolve_csv_path(request.args, refresh)
     transition = request.args.get("transition") or "all"
+    try:
+        rank_limit = int(request.args.get("rank_limit", 100))
+    except (TypeError, ValueError):
+        rank_limit = 100
+    rank_limit = max(1, rank_limit)
     weights = _parse_weights(request.args)
 
     if not csv_path.exists():
@@ -177,6 +214,20 @@ def index():
 
     conn = sqlite3.connect(config.DB)
     cur = conn.cursor()
+
+    def _category_percentages(rows):
+        counts = {"A": 0, "B": 0, "total": 0}
+        for row in rows:
+            category_val = row.get("category")
+            counts["total"] += 1
+            if category_val in {"A", "B"}:
+                counts[category_val] += 1
+        if counts["total"]:
+            return {
+                "A": round(counts["A"] / counts["total"] * 100.0, 2),
+                "B": round(counts["B"] / counts["total"] * 100.0, 2),
+            }
+        return {"A": None, "B": None}
 
     where_clause = ""
     where_params = []
@@ -232,6 +283,15 @@ def index():
             row["rank_change"] = None
         else:
             row["rank_change"] = prev_rank - new_rank
+
+    category_pct = None
+    if transition in {"10_to_11", "11_to_12"}:
+        top_rows = [
+            row
+            for row in rows_data
+            if row.get("new_rank") is not None and row.get("new_rank") <= rank_limit
+        ]
+        category_pct = _category_percentages(top_rows)
 
     plot_points = [
         {
@@ -330,10 +390,14 @@ def index():
         top_gainer_change=top_gainer.get("rank_change") if top_gainer else None,
         top_loser_name=_display_name(top_loser),
         top_loser_change=top_loser.get("rank_change") if top_loser else None,
+        cat_pct_a=category_pct["A"] if category_pct else None,
+        cat_pct_b=category_pct["B"] if category_pct else None,
+        rank_limit=rank_limit,
         total=total,
         scored=scored,
         csv_name=csv_path.name,
         csv_path=str(csv_path),
+        csv_mode=csv_mode,
     )
 
 
@@ -343,8 +407,8 @@ def download():
     if transition not in {"10_to_11", "11_to_12"}:
         return "transition must be 10_to_11 or 11_to_12", 400
 
-    csv_path = Path(request.args.get("csv") or config.CSV)
     refresh = request.args.get("refresh") == "1"
+    csv_path, _ = _resolve_csv_path(request.args, refresh)
     if not csv_path.exists():
         return f"CSV file not found: {csv_path}", 400
     if refresh or not config.DB.exists():
